@@ -1,0 +1,18 @@
+[package]
+name = "demo-nhs-llm"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "*"
+env_logger = "0.11"
+futures = "*"
+regex = "*"
+log = "*"
+rayon = "*"
+scraper = "*"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+url = "*"
+walkdir = "2"

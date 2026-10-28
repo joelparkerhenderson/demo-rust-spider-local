@@ -1,0 +1,68 @@
+//! Predicate for hidden directory entries.
+
+use ::walkdir::DirEntry;
+
+/// Returns `true` if the entry's file name starts with a dot.
+///
+/// This follows the Unix convention for hidden files and directories
+/// (e.g. `.git`, `.DS_Store`). Only the final path component is checked,
+/// not its parent directories.
+///
+/// Names that are not valid UTF-8 are treated as not hidden.
+///
+/// Typically used with `WalkDir::into_iter().filter_entry(...)`, negated, to
+/// skip hidden entries; see also
+/// [`dir_entry_is_visible`](super::dir_entry_is_visible::dir_entry_is_visible).
+///
+/// # Arguments
+///
+/// * `entry` - the directory entry to test.
+#[allow(dead_code)]
+pub fn dir_entry_is_hidden(entry: &DirEntry) -> bool {
+    entry.file_name()
+         // Convert the OS string to `&str`; `None` if not valid UTF-8.
+         .to_str()
+         .map(|s| s.starts_with("."))
+         // Non-UTF-8 names are not considered hidden.
+         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::walkdir::WalkDir;
+
+    /// Creates a unique temp directory holding `.dotfile` and `plainfile`,
+    /// returns the result of `dir_entry_is_hidden` for each as `(dotfile, plainfile)`.
+    fn results(tag: &str) -> (bool, bool) {
+        let dir = std::env::temp_dir().join(format!("demo-nhs-llm-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(".dotfile"), "").unwrap();
+        std::fs::write(dir.join("plainfile"), "").unwrap();
+        let mut dot = None;
+        let mut plain = None;
+        for entry in WalkDir::new(&dir).min_depth(1) {
+            let entry = entry.unwrap();
+            match entry.file_name().to_str().unwrap() {
+                ".dotfile" => dot = Some(dir_entry_is_hidden(&entry)),
+                "plainfile" => plain = Some(dir_entry_is_hidden(&entry)),
+                _ => {}
+            }
+        }
+        std::fs::remove_dir_all(&dir).unwrap();
+        (dot.unwrap(), plain.unwrap())
+    }
+
+    /// A name starting with a dot gives `true`.
+    #[test]
+    fn test_dotfile() {
+        assert_eq!(results("hidden-dot").0, true);
+    }
+
+    /// A name not starting with a dot gives `false`.
+    #[test]
+    fn test_plain_file() {
+        assert_eq!(results("hidden-plain").1, false);
+    }
+}
